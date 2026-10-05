@@ -30,8 +30,8 @@ This repository evaluates the causal impact of COVID-19 and related policy shock
 .
 ├── data/                   # Provincial panel datasets on youth unemployment and macro indicators
 ├── notebooks/              # Jupyter Notebooks covering analysis and modeling workflows
-│   ├── 01_did_twfe_model.ipynb        # DID and Fixed Effects estimations
-│   ├── 02_numpy_manual_twfe.ipynb     # Manual NumPy matrix derivation vs Stata benchmarks
-│   └── 03_xgboost_counterfactual.ipynb# Counterfactual prediction and gap analysis
+│   ├── 01_Data cleaning for unempoyment analysis.ipynb        
+│   ├── 02_Unemployment Analysis.ipynb     
+│  
 ├── results/                # Exported regression tables and visualization plots
 └── README.md
