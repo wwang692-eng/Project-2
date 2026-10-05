@@ -1,87 +1,39 @@
 # Project-2
-ML &amp; Counterfactual Evaluation of COVID-19 Macroeconomic Shocks across 10 Canadian Provinces using DiD, TWFE, and XGBoost.
-# 🇨🇦 Counterfactual Prediction & Causal Inference: Assessing COVID-19 Macroeconomic Shocks Across Canadian Provinces
+# COVID-19 Impact on Youth Unemployment in Canada: Econometric Causal Inference & Machine Learning Counterfactual Analysis
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
-[![Stata MP 18.0](https://img.shields.io/badge/stata-MP_18.0-red.svg)](https://www.stata.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-## 📌 Executive Summary
-This repository presents an end-to-end econometric and machine learning framework designed to evaluate the causal impact of the COVID-19 pandemic on unemployment rates across 10 Canadian provinces. 
-
-By combining **Difference-in-Differences (DiD)** and **Two-Way Fixed Effects (TWFE)** with an **XGBoost Counterfactual Prediction Engine**, this project quantifies the true net shock attributable to pandemic disruptions while isolating unobserved province-specific heterogeneity and national macroeconomic trends.
+This repository evaluates the causal impact of COVID-19 and related policy shocks on youth unemployment and non-employment rates ("Nowork rate") across Canadian provinces[cite: 22, 23, 26]. The analysis combines traditional panel econometrics (Difference-in-Differences, Two-Way Fixed Effects, and Driscoll-Kraay standard errors) with machine learning predictive modeling (XGBoost) for policy evaluation, robustness testing, and counterfactual simulation[cite: 5, 22, 26, 34, 35].
 
 ---
 
-## 🔬 Econometric Identification & Causal Framework
+## 📌 Key Highlights
 
-### 1. Two-Way Fixed Effects (TWFE) Specification
-To estimate the causal effect of COVID-19 on non-student vs. student unemployment, we specify the panel econometric model:
+1. **Difference-in-Differences & Two-Way Fixed Effects (DID & TWFE)**:
+   - Uses the four Atlantic provinces as the reference control group to evaluate dynamic policy responses in Ontario/Quebec and the Western provinces (AB, SK, MB, BC)[cite: 22, 28].
+   - Employs **Driscoll-Kraay standard errors** to handle cross-sectional dependence, autocorrelation, and heteroskedasticity inherent in long panel data[cite: 5, 34, 35].
 
-$$Y_{it} = \beta_0 + \beta_1 (Treatment_i \times Post_t) + \gamma_i + \lambda_t + \mathbf{X}_{it}'\boldsymbol{\delta} + \varepsilon_{it}$$
+2. **First-Principles NumPy Implementation**:
+   - Manually derives and implements the within-group transformation matrix operations in pure Python (NumPy)[cite: 24, 25].
+   - Replicates exact TWFE regression coefficients and standard errors calculated by Stata without relying on black-box econometric libraries[cite: 24, 25].
 
-Where:
-- $Y_{it}$: Unemployment rate in province $i$ at month $t$.
-- $Treatment_i \times Post_t$: Policy and shock exposure interaction term.
-- $\gamma_i$: Province fixed effects (controlling for time-invariant provincial characteristics).
-- $\lambda_t$: Time fixed effects (controlling for macroeconomic shocks common to all provinces).
-- $\mathbf{X}_{it}$: Vector of dynamic provincial economic covariates.
+3. **XGBoost Counterfactual Simulation**:
+   - Trains an XGBoost model on pre-2020 historical data to construct a counterfactual baseline representing youth unemployment trajectories in the absence of the pandemic[cite: 26, 27, 29].
+   - Quantifies the duration and magnitude of policy shocks by tracking the monthly cumulative gap between observed and counterfactual rates post-March 2020.
 
-### 2. Machine Learning Counterfactual Pipeline
-To simulate the benchmark baseline ("What if NO COVID-19 occurred?"):
-1. **Pre-Treatment Training**: Trained an optimized **XGBoost Regressor** on pre-2020 macroeconomic indicators across all 10 provinces.
-2. **Out-of-Sample Counterfactual Generation**: Projected baseline unemployment trajectories for the post-2020 window (2020-03 to 2025-12).
-3. **Treatment Shock Quantification**: Computed cumulative percentage point anomalies by measuring the divergence between realized values $Y_{it}$ and counterfactual predictions $\hat{Y}_{it}^{counterfactual}$.
+4. **Placebo Testing & Subgroup Heterogeneity**:
+   - Conducts placebo tests on full-time students to demonstrate group heterogeneity.
+   - Establishes that youth unemployment increases were driven primarily by labor market restrictions rather than general macroeconomic collapses.
 
 ---
 
-## 💡 Key Empirical Findings
-
-- **Ontario Shock**: Identified a cumulative **116.2 percentage point anomaly** in Ontario's non-student unemployment gap relative to its baseline trajectory.
-- **Heterogeneous Recovery**: Uncovered "gradual recovery" patterns in provinces like Manitoba, where structural labor adjustments occurred significantly faster than in eastern provinces.
-- **Robustness**: Replicated Stata coefficient estimates using pure **NumPy matrix programming** to guarantee computational internal validity.
-
----
-
-## 🛠️ Repository Architecture
+## 📂 Repository Structure
 
 ```text
-├── data/                  # Provincial unemployment & macroeconomic time series
-├── src/                   # Core codebase
-│   ├── pystata_bridge/    # Python-Stata MP synchronization scripts (Pandas/NumPy)
-│   ├── models/            # XGBoost hyperparameter tuning & TWFE regressions
-│   └── visualization/     # Interactive mapping and counterfactual plotting modules
-├── notebooks/             # End-to-end research workflow
-│   └── covid_unemployment_causal_analysis.ipynb
-├── results/               # Estimated coefficients, counterfactual plots, and maps
-├── requirements.txt       # Python environment dependencies
+.
+├── data/                   # Provincial panel datasets on youth unemployment and macro indicators
+├── notebooks/              # Jupyter Notebooks covering analysis and modeling workflows
+│   ├── 01_did_twfe_model.ipynb        # DID and Fixed Effects estimations
+│   ├── 02_numpy_manual_twfe.ipynb     # Manual NumPy matrix derivation vs Stata benchmarks
+│   └── 03_xgboost_counterfactual.ipynb# Counterfactual prediction and gap analysis
+├── results/                # Exported regression tables and visualization plots
+├── docs/                   # Empirical project report (unem.pdf)
 └── README.md
-```
-
----
-
-## ⚡ Quick Start & Execution
-
-```bash
-# Clone the repository
-git clone [https://github.com/wwang692-eng/Project-2.git](https://github.com/wwang692-eng/Project-2.git)
-cd your-repo-name
-
-# Set up virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install required packages
-pip install -r requirements.txt
-
-# Run Python-Stata integration pipeline
-python src/pystata_bridge/run_pipeline.py
-```
-
----
-
-## 🛠️ Tech Stack
-- **Causal Inference & Panel Data**: Difference-in-Differences (DiD), Two-Way Fixed Effects (TWFE)
-- **Machine Learning**: XGBoost, Scikit-Learn
-- **Data Engineering & Computation**: PyStata (Python-Stata MP Interface), Pandas, NumPy
-- **Visualization**: Folium / Plotly (Interactive Provincial Heterogeneity Maps), Matplotlib
