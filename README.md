@@ -30,8 +30,8 @@ This repository evaluates the causal impact of COVID-19 and related policy shock
 .
 ├── data/                   # Provincial panel datasets on youth unemployment and macro indicators
 ├── notebooks/              # Jupyter Notebooks covering analysis and modeling workflows
-│   ├── 01_Data cleaning for unempoyment analysis.ipynb        
-│   ├── 02_Unemployment Analysis.ipynb     
+│   ├── 01_Data cleaning for unempoyment analysis.ipynb     # Data collection and preprocessing.   
+│   ├── 02_Unemployment Analysis.ipynb      # Econometric estimation, machine learning prediction, virtualization and theoretical details.
 │  
 ├── results/                # Exported regression tables and visualization plots
 └── README.md
