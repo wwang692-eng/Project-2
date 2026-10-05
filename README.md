@@ -34,5 +34,4 @@ This repository evaluates the causal impact of COVID-19 and related policy shock
 │   ├── 02_numpy_manual_twfe.ipynb     # Manual NumPy matrix derivation vs Stata benchmarks
 │   └── 03_xgboost_counterfactual.ipynb# Counterfactual prediction and gap analysis
 ├── results/                # Exported regression tables and visualization plots
-├── docs/                   # Empirical project report (unem.pdf)
 └── README.md
