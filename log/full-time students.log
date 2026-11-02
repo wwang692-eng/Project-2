@@ -1,0 +1,820 @@
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  C:\Users\Administrator\Documents\fulltime.log
+  log type:  text
+ opened on:   2 Feb 2026, 12:52:11
+
+. ***1. Import dataset
+. 
+. import delimited "C:\Users\Administrator\Documents\加拿大数据\疫情对学生失业率的冲击\Final_Data.csv"
+(encoding automatically selected: ISO-8859-1)
+(6 vars, 4,384 obs)
+
+. 
+. 
+. 
+. 
+. ***2. Clean data and generate dummy variables for provinces and times
+. 
+. keep if students=="Full-time students" 
+(3,504 observations deleted)
+
+. encode ref_date,gen(date)
+
+. encode geo, gen(province_id)
+
+. 
+. xtset province_id date
+
+Panel variable: province_id (strongly balanced)
+ Time variable: date, 1 to 88
+         Delta: 1 unit
+
+. * Now, set the dataset as panel data.
+. 
+. gen treated = ( geo == "Ontario"| geo =="Quebec")
+
+. * Set up the dummy variable of treated group which refers to Ontario and Quebec, the variable is named as "treated".
+. 
+. gen post = (ref_date>="2020-03-01")
+
+. * Set up the dummy variable for time after covid-19 occured in Canada, generally, the time of covid-19 started is thought from 2020-03-01 in Canada. The variable is name
+> d as "post". 
+. 
+. gen did = treated*post
+
+. * Set up the interaction term used for DID regression.
+. 
+. ***3. Regulate the provinces I will analyze, I already make Ontario and Quebec as the treated group, and I must make sure the four Atlantic provinces are in the control 
+> group.
+. gen compare_sample = .
+(880 missing values generated)
+
+. 
+. replace compare_sample = 1 if geo == "Ontario" | geo == "Quebec"
+(176 real changes made)
+
+. 
+. replace compare_sample = 0 if geo == "Nova Scotia" | geo == "New Brunswick" | geo == "Prince Edward Island" | geo == "Newfoundland and Labrador"
+(352 real changes made)
+
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. ***4. For including the time fixed effect in DID regression, I must seperate the year and month from every datetime.
+. gen date_num = date( ref_date , "YMD")
+
+. 
+. format date_num %td
+
+. 
+. gen mdate = mofd(date_num)
+
+. 
+. format mdate %tm
+
+. 
+. gen year = year(dofm(mdate))
+
+. 
+. gen month = month(dofm(mdate))
+
+. 
+. 
+. 
+. ***5. Check heteroscedasticity, individual fixed effect and parallel trend prepared for DID.
+. reg  unemploymentrate  did  treated  post
+
+      Source |       SS           df       MS      Number of obs   =       880
+-------------+----------------------------------   F(3, 876)       =     10.72
+       Model |  746.033892         3  248.677964   Prob > F        =    0.0000
+    Residual |  20316.0908       876  23.1918845   R-squared       =    0.0354
+-------------+----------------------------------   Adj R-squared   =    0.0321
+       Total |  21062.1247       879  23.9614615   Root MSE        =    4.8158
+
+------------------------------------------------------------------------------
+unemployme~e | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         did |  -.0427536    .812542    -0.05   0.958     -1.63751    1.552003
+     treated |  -1.845833   .5874669    -3.14   0.002     -2.99884   -.6928264
+        post |   1.085352   .3633798     2.99   0.003     .3721552    1.798549
+       _cons |   12.79345   .2627232    48.70   0.000     12.27781    13.30909
+------------------------------------------------------------------------------
+
+. *First, run the most simple OLS regression to checkout if the dataset is accessible to be regressed.
+. 
+. estat imtest, white
+
+White's test
+H0: Homoskedasticity
+Ha: Unrestricted heteroskedasticity
+
+    chi2(3) =  31.33
+Prob > chi2 = 0.0000
+
+Cameron & Trivedi's decomposition of IM-test
+
+--------------------------------------------------
+              Source |       chi2     df         p
+---------------------+----------------------------
+  Heteroskedasticity |      31.33      3    0.0000
+            Skewness |      33.37      3    0.0000
+            Kurtosis |       6.15      1    0.0132
+---------------------+----------------------------
+               Total |      70.84      7    0.0000
+--------------------------------------------------
+
+. *Check if heteroskedasticity exists by White test
+. 
+. 
+. reg  unemploymentrate  did  treated  post  i.province_id , vce(cluster province_id )
+note: 9.province_id omitted because of collinearity.
+
+Linear regression                               Number of obs     =        880
+                                                F(1, 9)           =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.1203
+                                                Root MSE          =     4.6202
+
+                                         (Std. err. adjusted for 10 clusters in province_id)
+--------------------------------------------------------------------------------------------
+                           |               Robust
+          unemploymentrate | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------------+----------------------------------------------------------------
+                       did |  -.0427536   1.329391    -0.03   0.975    -3.050046    2.964539
+                   treated |   -5.17197   .6949091    -7.44   0.000    -6.743963   -3.599976
+                      post |   1.085352   .7568526     1.43   0.185    -.6267675    2.797471
+                           |
+               province_id |
+         British Columbia  |  -3.714773   6.66e-14 -5.6e+13   0.000    -3.714773   -3.714773
+                 Manitoba  |  -1.932954   6.65e-14 -2.9e+13   0.000    -1.932954   -1.932954
+            New Brunswick  |  -.7363636   6.66e-14 -1.1e+13   0.000    -.7363636   -.7363636
+Newfoundland and Labrador  |  -.1124999   6.66e-14 -1.7e+12   0.000    -.1124999   -.1124999
+              Nova Scotia  |  -.9999999   6.68e-14 -1.5e+13   0.000    -.9999999   -.9999999
+                  Ontario  |   4.185227   4.31e-14  9.7e+13   0.000     4.185227    4.185227
+     Prince Edward Island  |  -.2306817   6.65e-14 -3.5e+12   0.000    -.2306817   -.2306817
+                   Quebec  |          0  (omitted)
+             Saskatchewan  |  -2.140909   6.65e-14 -3.2e+13   0.000    -2.140909   -2.140909
+                           |
+                     _cons |   14.02697   .3956275    35.46   0.000       13.132    14.92195
+--------------------------------------------------------------------------------------------
+
+. * Then, use the method LSDV to check if the individual fixed effect of each province exists, the result shows that all provinces' dummy variables are statistically signi
+> ficant, that means individual fixed effect exsits, so we need to use FE regression instead of pooled OLS regression.
+. 
+. 
+. tab year, gen (year_)
+
+       year |      Freq.     Percent        Cum.
+------------+-----------------------------------
+       2015 |         80        9.09        9.09
+       2016 |         80        9.09       18.18
+       2017 |         80        9.09       27.27
+       2018 |         80        9.09       36.36
+       2019 |         80        9.09       45.45
+       2020 |         80        9.09       54.55
+       2021 |         80        9.09       63.64
+       2022 |         80        9.09       72.73
+       2023 |         80        9.09       81.82
+       2024 |         80        9.09       90.91
+       2025 |         80        9.09      100.00
+------------+-----------------------------------
+      Total |        880      100.00
+
+. tab month, gen(month_)
+
+      month |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |        110       12.50       12.50
+          2 |        110       12.50       25.00
+          3 |        110       12.50       37.50
+          4 |        110       12.50       50.00
+          9 |        110       12.50       62.50
+         10 |        110       12.50       75.00
+         11 |        110       12.50       87.50
+         12 |        110       12.50      100.00
+------------+-----------------------------------
+      Total |        880      100.00
+
+. *Generate dummy variables of year and month.
+. 
+. 
+. gen treat_year2 = treated* year_2
+
+. gen treat_year3 = treated* year_3
+
+. gen treat_year4 = treated* year_4
+
+. gen treat_year5 = treated* year_5
+
+. *Generate four interaction terms that four year dummy variables before 2020 time the dummy variable "treated"   
+. 
+. reg unemploymentrate did treated post treat_year2-treat_year5 if compare_sample != .
+
+      Source |       SS           df       MS      Number of obs   =       528
+-------------+----------------------------------   F(7, 520)       =      5.99
+       Model |  993.293991         7  141.899142   Prob > F        =    0.0000
+    Residual |   12326.495       520  23.7047981   R-squared       =    0.0746
+-------------+----------------------------------   Adj R-squared   =    0.0621
+       Total |   13319.789       527   25.274742   Root MSE        =    4.8688
+
+------------------------------------------------------------------------------
+unemployme~e | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         did |  -.3341097   1.308752    -0.26   0.799      -2.9052    2.236981
+     treated |  -1.845238   1.151668    -1.60   0.110    -4.107733    .4172563
+        post |   .1993271   .5195483     0.38   0.701    -.8213445    1.219999
+ treat_year2 |   .6375001   1.633031     0.39   0.696    -2.570649    3.845649
+ treat_year3 |   -1.68125   1.633031    -1.03   0.304    -4.889399    1.526899
+ treat_year4 |   -1.91875   1.633031    -1.17   0.241    -5.126899    1.289399
+ treat_year5 |   -3.21875   1.633031    -1.97   0.049    -6.426899   -.0106013
+       _cons |   13.97024   .3756328    37.19   0.000     13.23229    14.70818
+------------------------------------------------------------------------------
+
+. *Take the parallel trend test, the result shows coefficients of each interaction term and almost all p values are not statistically significant, which means parallel tre
+> nd is proved, so it is accessible to use DID regression.
+. 
+. 
+. xtreg unemploymentrate did i.year i.month if compare_sample != ., fe vce(cluster province_id)
+
+Fixed-effects (within) regression               Number of obs     =        528
+Group variable: province_id                     Number of groups  =          6
+
+R-squared:                                      Obs per group:
+     Within  = 0.1919                                         min =         88
+     Between = 0.4891                                         avg =       88.0
+     Overall = 0.1306                                         max =         88
+
+                                                F(5, 5)           =          .
+corr(u_i, Xb) = -0.1398                         Prob > F          =          .
+
+                            (Std. err. adjusted for 6 clusters in province_id)
+------------------------------------------------------------------------------
+             |               Robust
+unemployme~e | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         did |   1.510969   1.540883     0.98   0.372    -2.449998    5.471936
+             |
+        year |
+       2016  |  -.3062499   .1419666    -2.16   0.083    -.6711868     .058687
+       2017  |  -.1833334   1.307021    -0.14   0.894    -3.543137     3.17647
+       2018  |  -.2937501   .9831284    -0.30   0.777    -2.820962    2.233462
+       2019  |  -.8104167   1.405809    -0.58   0.589    -4.424163    2.803329
+       2020  |   2.747258   1.246645     2.20   0.079    -.4573451     5.95186
+       2021  |   1.098427   1.444771     0.76   0.481    -2.615474    4.812328
+       2022  |   -2.68699   1.519266    -1.77   0.137    -6.592388    1.218409
+       2023  |  -2.384906   1.509941    -1.58   0.175    -6.266333     1.49652
+       2024  |  -1.782823   1.323539    -1.35   0.236    -5.185089    1.619443
+       2025  |  -.1119897   1.507882    -0.07   0.944    -3.988123    3.764144
+             |
+       month |
+          2  |   -.459091   .6401985    -0.72   0.505    -2.104774    1.186592
+          3  |   .9754251   .6064683     1.61   0.169    -.5835513    2.534402
+          4  |   2.695122   .6565189     4.11   0.009     1.007487    4.382758
+          9  |   .6269404   .7710943     0.81   0.453    -1.355221    2.609101
+         10  |  -.5715446   .5500679    -1.04   0.346    -1.985539    .8424498
+         11  |  -.6669991   .7766744    -0.86   0.430    -2.663504    1.329506
+         12  |  -2.582151    .389883    -6.62   0.001    -3.584377   -1.579924
+             |
+       _cons |   13.37695   1.035116    12.92   0.000      10.7161     16.0378
+-------------+----------------------------------------------------------------
+     sigma_u |   2.210988
+     sigma_e |   4.335108
+         rho |  .20642447   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. *Start DID regression with two-way fixed effect, and cluster robust standard error.
+. 
+. 
+. 
+. 
+. 
+. 
+. ***6. Check the dataset is short panel or long panel
+. xtdes
+
+province_id:  1, 2, ..., 10                                  n =         10
+    date:  1, 2, ..., 88                                     T =         88
+           Delta(date) = 1 unit
+           Span(date)  = 88 periods
+           (province_id*date uniquely identifies each observation)
+
+Distribution of T_i:   min      5%     25%       50%       75%     95%     max
+                        88      88      88        88        88      88      88
+
+     Freq.  Percent    Cum. |  Pattern
+ ---------------------------+------------------------------------------------------------------------------------------
+       10    100.00  100.00 |  1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
+ ---------------------------+------------------------------------------------------------------------------------------
+       10    100.00         |  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+. * n=10, T=88, so this is a long panel
+. 
+. 
+. 
+. 
+. 
+. ***7. Check and correct groupwise heteroscedasticity and contemporaneous correlation.
+. quietly xtreg unemploymentrate did i.year i.month if compare_sample != ., fe vce(cluster province_id)
+
+. xttest3
+
+Modified Wald test for groupwise heteroskedasticity
+in fixed effect regression model
+
+H0: sigma(i)^2 = sigma^2 for all i
+
+chi2 (6)  =           13.79
+Prob > chi2 =          0.0320
+
+
+. *According to the result shown, the null hypothesis should be rejected strongly, which means groupwise heteroscedasticity exists.
+. 
+. 
+. ssc install xttest2
+checking xttest2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. quietly xtreg unemploymentrate did i.year i.month if compare_sample != ., fe vce(cluster province_id)
+
+. xttest2
+ 
+Correlation matrix of residuals:
+
+             |      __e4       __e5       __e6       __e7       __e8       __e9 
+-------------+------------------------------------------------------------------
+        __e4 |  1569.975                                                        
+        __e5 |  286.8161   2036.897                                             
+        __e6 |    96.017  -60.68812   1325.803                                  
+        __e7 |  121.0506   134.4113   82.19058    1104.37                       
+        __e8 |  101.6875  -188.7033  -270.1986    25.5861   2327.147            
+        __e9 |  106.0855   302.2752   481.5583   552.5003   108.0937   1107.562 
+
+         __e4     __e5     __e6     __e7     __e8     __e9
+__e4   1.0000
+__e5   0.1604   1.0000
+__e6   0.0666  -0.0369   1.0000
+__e7   0.0919   0.0896   0.0679   1.0000
+__e8   0.0532  -0.0867  -0.1538   0.0160   1.0000
+__e9   0.0804   0.2012   0.3974   0.4996   0.0673   1.0000
+
+Breusch-Pagan LM test of independence: chi2(15) =    48.037, Pr = 0.0000
+Based on 88 complete observations over panel units
+
+. *According to the result shown, the null hypothesis should be rejected strongly, which means contemporaneous correlation exists.
+. 
+. 
+. ssc install xtscc
+checking xtscc consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. *After the tests above, we need to use the stata command "xtscc" to deal with groupwise heteroscedasticity and contemporaneous correlation.
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. ***8. Let Ontario and Quebec be the treated group, while the Four Atlantic Provinces as the control group to start the DID regression with panel-corrected standard error
+> .
+. xtscc unemploymentrate  did  year_*  month_*  if compare_sample !=., fe lag(3)
+
+Regression with Driscoll-Kraay standard errors   Number of obs     =       528
+Method: Fixed-effects regression                 Number of groups  =         6
+Group variable (i): province_id                  F( 18,    87)     =     12.84
+maximum lag: 3                                   Prob > F          =    0.0000
+                                                 within R-squared  =    0.1919
+
+------------------------------------------------------------------------------
+             |             Drisc/Kraay
+unemployme~e | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         did |   1.510969   1.234209     1.22   0.224    -.9421555    3.964093
+      year_1 |   .1119897   .6178738     0.18   0.857    -1.116101    1.340081
+      year_2 |  -.1942602   .5427862    -0.36   0.721    -1.273107    .8845862
+      year_3 |  -.0713437   .7802512    -0.09   0.927    -1.622177     1.47949
+      year_4 |  -.1817604   .5971745    -0.30   0.762    -1.368709    1.005189
+      year_5 |   -.698427   .8602782    -0.81   0.419    -2.408323    1.011469
+      year_6 |   2.859247   1.323305     2.16   0.033      .229036    5.489459
+      year_7 |   1.210417    1.30023     0.93   0.354     -1.37393    3.794764
+      year_8 |     -2.575   .7635678    -3.37   0.001    -4.092674   -1.057326
+      year_9 |  -2.272917   .4578413    -4.96   0.000    -3.182926   -1.362907
+     year_10 |  -1.670833   .4649479    -3.59   0.001    -2.594967    -.746699
+     year_11 |          0  (omitted)
+     month_1 |   2.582151   .9588612     2.69   0.008     .6763101    4.487991
+     month_2 |    2.12306   .6361035     3.34   0.001      .858735    3.387384
+     month_3 |   3.557576   .5673215     6.27   0.000     2.429963    4.685189
+     month_4 |   5.277273   1.209228     4.36   0.000     2.873801    7.680745
+     month_5 |   3.209091   .5107127     6.28   0.000     2.193994    4.224188
+     month_6 |   2.010606    .416171     4.83   0.000     1.183421    2.837791
+     month_7 |   1.915152   .3583867     5.34   0.000     1.202819    2.627484
+     month_8 |          0  (omitted)
+       _cons |   10.68281   .5499108    19.43   0.000     9.589806    11.77582
+------------------------------------------------------------------------------
+
+
+. 
+. xtscc participationrate  did  year_*  month_*  if compare_sample !=., fe lag(3)
+
+Regression with Driscoll-Kraay standard errors   Number of obs     =       528
+Method: Fixed-effects regression                 Number of groups  =         6
+Group variable (i): province_id                  F( 18,    87)     =     17.17
+maximum lag: 3                                   Prob > F          =    0.0000
+                                                 within R-squared  =    0.1373
+
+------------------------------------------------------------------------------
+             |             Drisc/Kraay
+participat~e | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         did |   1.603364   .8261976     1.94   0.056    -.0387936    3.245521
+      year_1 |   3.394871   .3595866     9.44   0.000     2.680154    4.109589
+      year_2 |   3.076121   .5349625     5.75   0.000     2.012825    4.139417
+      year_3 |   3.611538   .6109565     5.91   0.000     2.397196     4.82588
+      year_4 |   2.057371   .5312525     3.87   0.000     1.001449    3.113293
+      year_5 |   3.853205   .5644367     6.83   0.000     2.731325    4.975084
+      year_6 |   .2377803   1.232551     0.19   0.847    -2.212047    2.687608
+      year_7 |   2.997917   .6050945     4.95   0.000     1.795226    4.200607
+      year_8 |   2.166667   .4178236     5.19   0.000     1.336197    2.997136
+      year_9 |   1.810417   .3760812     4.81   0.000     1.062915    2.557919
+     year_10 |   .7041667   .6236662     1.13   0.262    -.5354374    1.943771
+     year_11 |          0  (omitted)
+     month_1 |  -1.716565   .6427844    -2.67   0.009    -2.994168    -.438961
+     month_2 |  -.8286859    .572361    -1.45   0.151    -1.966315    .3089436
+     month_3 |  -.8212119   .6048952    -1.36   0.178    -2.023507    .3810827
+     month_4 |  -1.440909   .8691637    -1.66   0.101    -3.168466    .2866481
+     month_5 |   .4484853   .3949262     1.14   0.259    -.3364733    1.233444
+     month_6 |   .2545457   .3816377     0.67   0.507    -.5040004    1.013092
+     month_7 |  -.0439393   .3779994    -0.12   0.908     -.795254    .7073754
+     month_8 |          0  (omitted)
+       _cons |   41.27575   .3805402   108.47   0.000     40.51938    42.03211
+------------------------------------------------------------------------------
+
+
+. 
+. gen nowork = 100- employmentrate
+
+. xtscc nowork  did  year_*  month_*  if compare_sample !=., fe lag(3)
+
+Regression with Driscoll-Kraay standard errors   Number of obs     =       528
+Method: Fixed-effects regression                 Number of groups  =         6
+Group variable (i): province_id                  F( 18,    87)     =     20.09
+maximum lag: 3                                   Prob > F          =    0.0000
+                                                 within R-squared  =    0.1532
+
+------------------------------------------------------------------------------
+             |             Drisc/Kraay
+      nowork | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         did |  -.8267319   1.121868    -0.74   0.463    -3.056566    1.403103
+      year_1 |  -2.871411   .4178691    -6.87   0.000    -3.701971   -2.040851
+      year_2 |  -2.746411   .6200109    -4.43   0.000     -3.97875   -1.514072
+      year_3 |   -3.15891   .8371002    -3.77   0.000    -4.822738   -1.495083
+      year_4 |  -1.846411   .4835668    -3.82   0.000    -2.807552   -.8852692
+      year_5 |  -3.727661   .5322894    -7.00   0.000    -4.785643   -2.669678
+      year_6 |   .7290225   1.442982     0.51   0.615     -2.13906    3.597105
+      year_7 |  -2.160416     1.0591    -2.04   0.044    -4.265492   -.0553412
+      year_8 |     -3.075   .6376128    -4.82   0.000    -4.342324   -1.807675
+      year_9 |   -2.64375   .4517844    -5.85   0.000     -3.54172   -1.745779
+     year_10 |  -1.352084   .6588108    -2.05   0.043    -2.661542   -.0426258
+     year_11 |          0  (omitted)
+     month_1 |   2.676462   .8608328     3.11   0.003     .9654638    4.387461
+     month_2 |   1.624947   .6955817     2.34   0.022     .2424035    3.007491
+     month_3 |       2.25   .6553612     3.43   0.001     .9473985    3.552601
+     month_4 |   3.406061     1.1338     3.00   0.003     1.152511     5.65961
+     month_5 |   .9984847   .4072125     2.45   0.016     .1891057    1.807864
+     month_6 |   .6939396   .3377877     2.05   0.043     .0225499    1.365329
+     month_7 |   .9242427   .3194133     2.89   0.005     .2893741    1.559111
+     month_8 |          0  (omitted)
+       _cons |   63.01423    .490858   128.38   0.000     62.03859    63.98986
+------------------------------------------------------------------------------
+
+
+. 
+. 
+. 
+. 
+. 
+. 
+. ***9. Let the Four Western provinces(Alberta,Manitoba,Saskatchewan,British Columbia) be the treated group, while the control group is unchanged to start the DID regressi
+> on with panel-corrected standard error.
+. gen treated2 = ( geo == "Alberta"| geo =="Saskatchewan" | geo == "Manitoba" | geo=="British Columbia")
+
+. gen did2 = treated2*post
+
+. *Repeat above steps of generating province dummy variables and DID interaction term
+. 
+. 
+. gen compare_sample2 = .
+(880 missing values generated)
+
+. 
+. replace compare_sample2 = 1 if geo == "Alberta"| geo =="Saskatchewan" | geo == "Manitoba" | geo=="British Columbia"
+(352 real changes made)
+
+. replace compare_sample2 = 0 if geo == "Nova Scotia" | geo == "New Brunswick" | geo == "Prince Edward Island" | geo == "Newfoundland and Labrador"
+(352 real changes made)
+
+. *Get the new treated group and the control group is unchanged. 
+. 
+. 
+. 
+. 
+. xtscc unemploymentrate  did2  year_*  month_*  if compare_sample2 !=., fe lag(3)
+
+Regression with Driscoll-Kraay standard errors   Number of obs     =       704
+Method: Fixed-effects regression                 Number of groups  =         8
+Group variable (i): province_id                  F( 18,    87)     =     20.12
+maximum lag: 3                                   Prob > F          =    0.0000
+                                                 within R-squared  =    0.2538
+
+------------------------------------------------------------------------------
+             |             Drisc/Kraay
+unemployme~e | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        did2 |   2.593202   1.115569     2.32   0.022     .3758874    4.810516
+      year_1 |  -.3656249   .7908509    -0.46   0.645    -1.937527    1.206277
+      year_2 |   .3484376   .7863103     0.44   0.659    -1.214439    1.911314
+      year_3 |    .521875   .8930839     0.58   0.560    -1.253226    2.296976
+      year_4 |  -.1390625   .8030964    -0.17   0.863    -1.735304    1.457179
+      year_5 |          0  (omitted)
+      year_6 |   3.993174   1.488829     2.68   0.009     1.033966    6.952383
+      year_7 |   .9408991   1.506276     0.62   0.534    -2.052988    3.934786
+      year_8 |  -3.341913   1.147945    -2.91   0.005    -5.623578   -1.060248
+      year_9 |  -2.657538   1.030518    -2.58   0.012    -4.705805   -.6092714
+     year_10 |  -.9903508   1.013423    -0.98   0.331    -3.004639    1.023937
+     year_11 |   .7299616   .9968634     0.73   0.466    -1.251412    2.711336
+     month_1 |   1.701964   .8037469     2.12   0.037     .1044296    3.299498
+     month_2 |   2.007646   .6252766     3.21   0.002     .7648405    3.250451
+     month_3 |   3.120454   .6704391     4.65   0.000     1.787884    4.453025
+     month_4 |   4.797727   .8812178     5.44   0.000     3.046211    6.549243
+     month_5 |   3.148864   .4749018     6.63   0.000     2.204945    4.092782
+     month_6 |   2.011364    .423642     4.75   0.000     1.169329    2.853398
+     month_7 |   1.752273   .3572464     4.90   0.000     1.042207    2.462339
+     month_8 |          0  (omitted)
+       _cons |   10.45278   .7565873    13.82   0.000     8.948977    11.95658
+------------------------------------------------------------------------------
+
+
+. xtscc participationrate  did2  year_*  month_*  if compare_sample2 !=., fe lag(3)
+
+Regression with Driscoll-Kraay standard errors   Number of obs     =       704
+Method: Fixed-effects regression                 Number of groups  =         8
+Group variable (i): province_id                  F( 18,    87)     =      6.81
+maximum lag: 3                                   Prob > F          =    0.0000
+                                                 within R-squared  =    0.1586
+
+------------------------------------------------------------------------------
+             |             Drisc/Kraay
+participat~e | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        did2 |  -.0004628   .7280876    -0.00   0.999    -1.447616     1.44669
+      year_1 |   2.38e-07   .3681127     0.00   1.000    -.7316637    .7316641
+      year_2 |   .2953127   .5263911     0.56   0.576    -.7509466    1.341572
+      year_3 |   .7390626   .5088824     1.45   0.150    -.2723962    1.750521
+      year_4 |  -.9624999   .4026321    -2.39   0.019    -1.762775    -.162225
+      year_5 |          0  (omitted)
+      year_6 |  -3.813889   1.271389    -3.00   0.004    -6.340913   -1.286865
+      year_7 |   .3049191   .7498301     0.41   0.685     -1.18545    1.795288
+      year_8 |  -.3685185   .7536702    -0.49   0.626     -1.86652    1.129483
+      year_9 |  -1.281019   .5555989    -2.31   0.024    -2.385332   -.1767058
+     year_10 |  -2.445081   .8749048    -2.79   0.006    -4.184049   -.7061129
+     year_11 |  -2.966956   .5844289    -5.08   0.000    -4.128572    -1.80534
+     month_1 |  -.9579754   .5281924    -1.81   0.073    -2.007815    .0918642
+     month_2 |   -.569339   .5851314    -0.97   0.333    -1.732351    .5936729
+     month_3 |  -.3499999   .5479383    -0.64   0.525    -1.439087    .7390867
+     month_4 |  -.8420451   .9621042    -0.88   0.384    -2.754331    1.070241
+     month_5 |   .8352275   .4621469     1.81   0.074    -.0833394    1.753794
+     month_6 |    .705682   .3591423     1.96   0.053    -.0081521    1.419516
+     month_7 |   .2011364   .3815307     0.53   0.599    -.5571971    .9594699
+     month_8 |          0  (omitted)
+       _cons |   43.20341   .3612833   119.58   0.000     42.48532     43.9215
+------------------------------------------------------------------------------
+
+
+. xtscc nowork  did2  year_*  month_*  if compare_sample2 !=., fe lag(3)
+
+Regression with Driscoll-Kraay standard errors   Number of obs     =       704
+Method: Fixed-effects regression                 Number of groups  =         8
+Group variable (i): province_id                  F( 18,    87)     =     11.91
+maximum lag: 3                                   Prob > F          =    0.0000
+                                                 within R-squared  =    0.1996
+
+------------------------------------------------------------------------------
+             |             Drisc/Kraay
+      nowork | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        did2 |   1.054337   .9807987     1.07   0.285    -.8951065    3.003781
+      year_1 |   -.115625    .396689    -0.29   0.771    -.9040873    .6728373
+      year_2 |      -.075   .5625298    -0.13   0.894    -1.193089    1.043089
+      year_3 |  -.3984372   .6449411    -0.62   0.538    -1.680327     .883453
+      year_4 |   .8156248   .4110667     1.98   0.050    -.0014148    1.632664
+      year_5 |          0  (omitted)
+      year_6 |   4.646811   1.438787     3.23   0.002     1.787067    7.506555
+      year_7 |   .1134566   1.131395     0.10   0.920    -2.135314    2.362227
+      year_8 |  -1.106856   .8530189    -1.30   0.198    -2.802324    .5886114
+      year_9 |   .0025188   .6925836     0.00   0.997    -1.374066    1.379104
+     year_10 |   1.755643   .9432104     1.86   0.066    -.1190895    3.630376
+     year_11 |   2.965019   .6505131     4.56   0.000     1.672054    4.257984
+     month_1 |   1.566106   .6860171     2.28   0.025     .2025724    2.929639
+     month_2 |   1.328606   .6861509     1.94   0.056    -.0351932    2.692405
+     month_3 |   1.545454   .6667612     2.32   0.023      .220194    2.870714
+     month_4 |   2.577273   1.040896     2.48   0.015     .5083795    4.646166
+     month_5 |    .629545    .476601     1.32   0.190    -.3177512    1.576841
+     month_6 |   .2749999   .3607411     0.76   0.448     -.442012    .9920118
+     month_7 |   .6386363   .3283349     1.95   0.055    -.0139649    1.291238
+     month_8 |          0  (omitted)
+       _cons |   61.30649   .4728363   129.66   0.000     60.36667     62.2463
+------------------------------------------------------------------------------
+
+
+. *Similarly, take the DID regressions for the new treated group. 
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. ***10. Comparison within pooled OLS, Fixed Effect(Standard), Fixed Effect(Driscoll-Kraay Standard Error) and Random Effect regressions.
+. quietly reg  unemploymentrate  did treated post ,robust
+
+. estimates store OLS
+
+. 
+. quietly xtreg unemploymentrate did  i.year i.month if compare_sample != ., fe vce(cluster province_id)
+
+. estimates store FE_Standard
+
+. 
+. quietly xtscc unemploymentrate  did  year_*  month_*  if compare_sample !=., fe lag(3)
+
+. estimates store FE
+
+. 
+. 
+. quietly xtreg unemploymentrate did if compare_sample != ., re vce(cluster province_id) theta
+
+. estimates store RE
+
+. 
+. esttab OLS FE_Standard FE  RE, r2 se mtitles star
+
+----------------------------------------------------------------------------
+                      (1)             (2)             (3)             (4)   
+                      OLS     FE_Standard              FE              RE   
+----------------------------------------------------------------------------
+did               -0.0428           1.511           1.511           0.599   
+                  (0.800)         (1.541)         (1.234)         (1.283)   
+
+treated            -1.846***                                                
+                  (0.380)                                                   
+
+post                1.085**                                                 
+                  (0.357)                                                   
+
+2015.year                               0                                   
+                                      (.)                                   
+
+2016.year                          -0.306                                   
+                                  (0.142)                                   
+
+2017.year                          -0.183                                   
+                                  (1.307)                                   
+
+2018.year                          -0.294                                   
+                                  (0.983)                                   
+
+2019.year                          -0.810                                   
+                                  (1.406)                                   
+
+2020.year                           2.747                                   
+                                  (1.247)                                   
+
+2021.year                           1.098                                   
+                                  (1.445)                                   
+
+2022.year                          -2.687                                   
+                                  (1.519)                                   
+
+2023.year                          -2.385                                   
+                                  (1.510)                                   
+
+2024.year                          -1.783                                   
+                                  (1.324)                                   
+
+2025.year                          -0.112                                   
+                                  (1.508)                                   
+
+1.month                                 0                                   
+                                      (.)                                   
+
+2.month                            -0.459                                   
+                                  (0.640)                                   
+
+3.month                             0.975                                   
+                                  (0.606)                                   
+
+4.month                             2.695**                                 
+                                  (0.657)                                   
+
+9.month                             0.627                                   
+                                  (0.771)                                   
+
+10.month                           -0.572                                   
+                                  (0.550)                                   
+
+11.month                           -0.667                                   
+                                  (0.777)                                   
+
+12.month                           -2.582**                                 
+                                  (0.390)                                   
+
+year_1                                              0.112                   
+                                                  (0.618)                   
+
+year_2                                             -0.194                   
+                                                  (0.543)                   
+
+year_3                                            -0.0713                   
+                                                  (0.780)                   
+
+year_4                                             -0.182                   
+                                                  (0.597)                   
+
+year_5                                             -0.698                   
+                                                  (0.860)                   
+
+year_6                                              2.859*                  
+                                                  (1.323)                   
+
+year_7                                              1.210                   
+                                                  (1.300)                   
+
+year_8                                             -2.575**                 
+                                                  (0.764)                   
+
+year_9                                             -2.273***                
+                                                  (0.458)                   
+
+year_10                                            -1.671***                
+                                                  (0.465)                   
+
+year_11                                                 0                   
+                                                      (.)                   
+
+month_1                                             2.582**                 
+                                                  (0.959)                   
+
+month_2                                             2.123**                 
+                                                  (0.636)                   
+
+month_3                                             3.558***                
+                                                  (0.567)                   
+
+month_4                                             5.277***                
+                                                  (1.209)                   
+
+month_5                                             3.209***                
+                                                  (0.511)                   
+
+month_6                                             2.011***                
+                                                  (0.416)                   
+
+month_7                                             1.915***                
+                                                  (0.358)                   
+
+month_8                                                 0                   
+                                                      (.)                   
+
+_cons               12.79***        13.38***        10.68***        13.11***
+                  (0.217)         (1.035)         (0.550)         (0.722)   
+----------------------------------------------------------------------------
+N                     880             528             528             528   
+R-sq                0.035           0.192                                   
+----------------------------------------------------------------------------
+Standard errors in parentheses
+* p<0.05, ** p<0.01, *** p<0.001
+
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. log close
+      name:  <unnamed>
+       log:  C:\Users\Administrator\Documents\fulltime.log
+  log type:  text
+ closed on:   2 Feb 2026, 12:52:17
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
