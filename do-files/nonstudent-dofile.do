@@ -134,7 +134,7 @@ xtscc unemploymentrate  did  year_*  month_*  if compare_sample !=., fe lag(3)
 
 
 
-***8. Let Ontario and Quebec be the treated group, while the Four Atlantic Provinces as the control group to start the DID regression with panel-corrected standard error.
+***8. Let Ontario and Quebec be the treated group, while the Four Atlantic Provinces as the control group to start the DID regression with Driscoll-Kraay standard error.
 xtscc unemploymentrate  did  year_*  month_*  if compare_sample !=., fe lag(3)
 
 xtscc participationrate  did  year_*  month_*  if compare_sample !=., fe lag(3)
@@ -147,7 +147,7 @@ xtscc nowork  did  year_*  month_*  if compare_sample !=., fe lag(3)
 
 
 
-***9. Let the Four Western provinces(Alberta,Manitoba,Saskatchewan,British Columbia) be the treated group, while the control group is unchanged to start the DID regression with panel-corrected standard error.
+***9. Let the Four Western provinces(Alberta,Manitoba,Saskatchewan,British Columbia) be the treated group, while the control group is unchanged to start the DID regression with Driscoll-Kraay standard error.
 gen treated2 = ( geo == "Alberta"| geo =="Saskatchewan" | geo == "Manitoba" | geo=="British Columbia")
 gen did2 = treated2*post
 *Repeat above steps of generating province dummy variables and DID interaction term
